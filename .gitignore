@@ -1,0 +1,10 @@
+firmware/.pio/
+firmware/.vscode/
+__pycache__/
+*.pyc
+.pytest_cache/
+build/
+dist/
+*.spec
+web/*.bin
+.DS_Store

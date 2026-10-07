@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NetMeter · Instalador web</title>
+<meta name="description" content="Flashea NetMeter en la pantalla Guition ESP32-4848S040 desde el navegador.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
+<style>
+  :root {
+    --bg: #101010; --card: #181818; --border: #292829; --text: #efefef;
+    --text-2: #a5a6a5; --text-3: #6b696b; --accent: #006dff; --green: #39cb63; --amber: #f7a621;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.55 Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  main { max-width: 760px; margin: 0 auto; padding: 48px 16px 64px; }
+  header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+  h1 { font-size: 28px; font-weight: 600; margin: 0; letter-spacing: -0.01em; }
+  .pill {
+    font-size: 13px; font-weight: 500; color: var(--green); background: #16301f;
+    padding: 3px 10px; border-radius: 999px;
+  }
+  .lede { color: var(--text-2); margin: 0 0 32px; max-width: 60ch; }
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 20px 22px; margin-bottom: 16px;
+  }
+  .card h2 {
+    font-size: 12px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--text-3); margin: 0 0 12px;
+  }
+  ol { margin: 0; padding-left: 22px; }
+  li { margin: 6px 0; }
+  li::marker { color: var(--text-3); }
+  code {
+    font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    background: #0c0c0c; border: 1px solid var(--border); border-radius: 6px; padding: 2px 6px;
+    word-break: break-all;
+  }
+  pre {
+    background: #0c0c0c; border: 1px solid var(--border); border-radius: 8px;
+    padding: 12px 14px; overflow-x: auto; margin: 10px 0 0;
+  }
+  pre code { border: 0; padding: 0; background: none; }
+  .install { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; margin: 4px 0 2px; }
+  esp-web-install-button button[slot="activate"], .btn {
+    font: 500 15px Inter, system-ui, sans-serif; color: #fff; background: var(--accent);
+    border: 0; border-radius: 8px; padding: 11px 20px; cursor: pointer;
+  }
+  esp-web-install-button button[slot="activate"]:hover, .btn:hover { filter: brightness(1.1); }
+  .muted { color: var(--text-3); font-size: 14px; }
+  .warn { color: var(--amber); font-size: 14px; }
+  a { color: #4d94ff; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+  .os h3 { font-size: 15px; font-weight: 600; margin: 0 0 6px; }
+  footer { margin-top: 40px; color: var(--text-3); font-size: 13px; }
+</style>
+</head>
+<body>
+<main>
+  <header><h1>NetMeter</h1><span class="pill">v1.0.0</span></header>
+  <p class="lede">
+    Monitor de consumo de internet para la pantalla <strong>Guition ESP32-4848S040</strong>
+    (4", 480×480). Muestra descarga y subida en vivo frente a tu plan contratado,
+    historial de 30 minutos, latencia, y te avisa cuando el consumo pasa del límite que elijas.
+  </p>
+
+  <section class="card">
+    <h2>Paso 1 · Flashear la pantalla</h2>
+    <ol>
+      <li>Usa <strong>Chrome o Edge</strong> en un ordenador (no funciona en Firefox, Safari ni móvil).</li>
+      <li>Conecta la pantalla al PC con un cable USB <strong>de datos</strong>.</li>
+      <li>Pulsa el botón, elige el puerto (<code>USB-SERIAL CH340</code> o similar) y acepta.</li>
+    </ol>
+    <div class="install" style="margin-top:16px">
+      <esp-web-install-button manifest="manifest.json">
+        <button slot="activate">Instalar NetMeter en la pantalla</button>
+        <span slot="unsupported" class="warn">Tu navegador no soporta Web Serial. Usa Chrome o Edge en un ordenador.</span>
+        <span slot="not-allowed" class="warn">Abre esta página por HTTPS.</span>
+      </esp-web-install-button>
+      <span class="muted">Tarda ~1 minuto. La primera vez, acepta borrar el dispositivo.</span>
+    </div>
+    <p class="muted" style="margin:14px 0 0">
+      ¿No aparece ningún puerto? En Windows instala el
+      <a href="https://www.wch-ic.com/downloads/CH341SER_EXE.html">driver CH340</a> y vuelve a conectar.
+      En Ubuntu, desinstala <code>brltty</code> (<code>sudo apt remove brltty</code>).
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>Paso 2 · Instalar la app del PC (una sola vez)</h2>
+    <p style="margin:0 0 12px">La pantalla no puede ver el tráfico del PC por sí sola: una app pequeña lo mide y se lo envía por USB.
+      Arranca sola con el ordenador y encuentra la pantalla en cuanto la conectas.</p>
+    <div class="grid">
+      <div class="os">
+        <h3>Windows 10/11</h3>
+        <span class="muted">En PowerShell:</span>
+        <pre><code>irm https://raw.githubusercontent.com/dcryptoRS/netmeter-4848s040/main/host/install-windows.ps1 | iex</code></pre>
+        <p class="muted">O descarga <a href="https://github.com/dcryptoRS/netmeter-4848s040/releases/latest">NetMeter.exe</a> y ábrelo.</p>
+      </div>
+      <div class="os">
+        <h3>Linux y macOS</h3>
+        <span class="muted">En una terminal:</span>
+        <pre><code>curl -fsSL https://raw.githubusercontent.com/dcryptoRS/netmeter-4848s040/main/host/install.sh | bash</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Paso 3 · Tu plan y tus alertas</h2>
+    <p style="margin:0">Toca el engranaje de la pantalla y escribe la velocidad de <strong>bajada</strong> y
+      <strong>subida</strong> que tienes contratada, y a qué porcentaje quieres que te avise. También puedes
+      ajustar el brillo y el idioma (español / English).</p>
+  </section>
+
+  <section class="card">
+    <h2>English</h2>
+    <p style="margin:0">Use Chrome or Edge on a computer, plug the screen in with a USB data cable and press
+      the blue button. Then install the PC app (commands above) — it starts with your computer and finds the
+      screen automatically. Tap the gear on the screen to enter your plan's download/upload speed, alert
+      thresholds, brightness and language.</p>
+  </section>
+
+  <footer>
+    Código, guía completa e incidencias: <a href="https://github.com/dcryptoRS/netmeter-4848s040">github.com/dcryptoRS/netmeter-4848s040</a>
+    · Proyecto independiente, sin relación con Guition ni Ubiquiti.
+  </footer>
+</main>
+</body>
+</html>

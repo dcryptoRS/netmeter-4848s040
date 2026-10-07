@@ -1,0 +1,11 @@
+{
+  "name": "NetMeter",
+  "version": "1.0.0",
+  "new_install_prompt_erase": true,
+  "builds": [
+    {
+      "chipFamily": "ESP32-S3",
+      "parts": [{ "path": "netmeter-4848s040.bin", "offset": 0 }]
+    }
+  ]
+}

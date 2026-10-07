@@ -1,0 +1,401 @@
+===============================================================================
+ NETMETER - Monitor de consumo de internet para la pantalla Guition ESP32-4848S040
+ Guía completa de instalación y uso                                    v1.0.0
+===============================================================================
+
+ Web de instalación:  https://dcryptoRS.github.io/netmeter-4848s040/
+ Código y descargas:  https://github.com/dcryptoRS/netmeter-4848s040
+
+
+-------------------------------------------------------------------------------
+ 0. QUÉ ES Y QUÉ NECESITAS
+-------------------------------------------------------------------------------
+
+NetMeter convierte la pantalla Guition ESP32-4848S040 en un monitor de escritorio
+de tu conexión a internet:
+
+  - Velocidad de descarga y subida en tiempo real, en Kbps / Mbps / Gbps
+    (bits por segundo, la misma unidad que usa tu operadora).
+  - Porcentaje de tu plan contratado que estás usando, en bajada y en subida.
+  - Gráfico con el historial real de los últimos 2, 10 o 30 minutos.
+  - Latencia (ping), datos recibidos y enviados.
+  - Alertas cuando el consumo supera el porcentaje que tú elijas.
+  - Brillo regulable e idioma español / inglés.
+
+Necesitas:
+
+  1. La pantalla Guition ESP32-4848S040 (4", 480x480, chip ESP32-S3 N16R8).
+     En la parte trasera suele poner "ESP32-4848S040"; algunas unidades solo
+     llevan un código de lote, por ejemplo "TF042".
+  2. Un cable USB-C de DATOS. Muchos cables baratos solo cargan y con ellos el
+     ordenador no ve la pantalla. Si no la detecta, prueba otro cable.
+  3. Un ordenador con Windows 10/11, macOS o Linux. La pantalla queda conectada
+     a él por USB (el USB también le da la corriente).
+  4. Solo para el primer paso: Google Chrome o Microsoft Edge.
+
+IMPORTANTE - qué mide exactamente:
+
+  La pantalla no tiene forma de ver tu red por sí sola. Una app pequeña en el
+  ordenador mide el tráfico y se lo manda por el cable USB. Por defecto mide el
+  tráfico de ESE ordenador (por la tarjeta de red con la que sale a internet:
+  cable o Wi-Fi). Si en casa hay otros equipos descargando, ese tráfico no
+  aparece. Para ver el consumo de TODA la casa necesitas un router que lo
+  permita; hoy NetMeter sabe leerlo de los gateways UniFi (sección 7).
+
+
+-------------------------------------------------------------------------------
+ 1. FLASHEAR LA PANTALLA (una sola vez)
+-------------------------------------------------------------------------------
+
+OPCIÓN A - Desde el navegador (recomendada, no instalas nada)
+
+  1. Abre https://dcryptoRS.github.io/netmeter-4848s040/ en Chrome o Edge,
+     en un ordenador (no funciona en Firefox, Safari ni en el móvil).
+  2. Conecta la pantalla al ordenador con el cable USB de datos.
+  3. Pulsa "Instalar NetMeter en la pantalla".
+  4. Elige el puerto que aparece (suele llamarse "USB-SERIAL CH340",
+     "USB Serial" o "wchusbserial") y pulsa Conectar.
+  5. La primera vez, acepta "Borrar el dispositivo" (erase). Tarda ~1 minuto.
+  6. Al terminar, la pantalla se reinicia y muestra "Instala NetMeter en tu PC"
+     con un código QR. Eso significa que el firmware está bien instalado.
+
+  Si no aparece ningún puerto:
+   - Windows: instala el driver CH340 desde
+     https://www.wch-ic.com/downloads/CH341SER_EXE.html y vuelve a conectar.
+   - Linux (Ubuntu): el programa "brltty" a veces se apropia del puerto.
+     Desinstálalo con:  sudo apt remove brltty
+   - Prueba otro cable USB (ver sección 0).
+
+OPCIÓN B - Con esptool (línea de comandos)
+
+  1. Descarga netmeter-4848s040.bin de la página de Releases:
+     https://github.com/dcryptoRS/netmeter-4848s040/releases/latest
+  2. Instala esptool:            pip install esptool
+  3. Flashea (cambia el puerto: COM5 en Windows, /dev/ttyUSB0 en Linux,
+     /dev/cu.wchusbserial* o /dev/cu.usbserial* en macOS):
+
+       python -m esptool --chip esp32s3 --port COM5 erase_flash
+       python -m esptool --chip esp32s3 --port COM5 write_flash 0x0 netmeter-4848s040.bin
+
+OPCIÓN C - Compilar desde el código (PlatformIO)
+
+       git clone https://github.com/dcryptoRS/netmeter-4848s040
+       cd netmeter-4848s040/firmware
+       pio run -t upload
+
+
+-------------------------------------------------------------------------------
+ 2. INSTALAR LA APP DEL ORDENADOR (una sola vez)
+-------------------------------------------------------------------------------
+
+La app es la que mide el tráfico. Se instala solo en tu usuario (no hace falta
+ser administrador), arranca sola cada vez que inicias sesión, funciona sin
+ventanas y encuentra la pantalla en cuanto la conectas. Es "conectar y listo":
+después de esto no tienes que volver a abrir nada.
+
+WINDOWS 10 / 11
+
+  Forma 1 (recomendada):
+    1. Pulsa Inicio, escribe "PowerShell" y ábrelo (no hace falta como admin).
+    2. Pega esta línea y pulsa Enter:
+
+       irm https://raw.githubusercontent.com/dcryptoRS/netmeter-4848s040/main/host/install-windows.ps1 | iex
+
+    3. Si no tienes Python, el instalador lo instala solo con winget. Si no
+       puede, te dirá que lo instales desde https://www.python.org/downloads/
+       (marca "Add python.exe to PATH") y vuelvas a ejecutar la línea.
+
+  Forma 2 (sin terminal):
+    1. Descarga NetMeter.exe desde
+       https://github.com/dcryptoRS/netmeter-4848s040/releases/latest
+    2. Haz doble clic. Windows puede avisar "Windows protegió su PC" porque el
+       programa no está firmado: pulsa "Más información" > "Ejecutar de todas
+       formas". Verás el mensaje "NetMeter está instalado y funcionando".
+    3. Guarda el .exe en una carpeta fija (por ejemplo Documentos): Windows lo
+       arranca desde ahí en cada inicio de sesión.
+
+  Si la pantalla sigue en "Esperando PC", revisa el driver CH340 (sección 1).
+
+MACOS
+
+  1. Abre Terminal (Aplicaciones > Utilidades > Terminal).
+  2. Pega y pulsa Enter:
+
+       curl -fsSL https://raw.githubusercontent.com/dcryptoRS/netmeter-4848s040/main/host/install.sh | bash
+
+  3. Si te pide Python 3, instálalo desde https://www.python.org/downloads/
+     (o ejecuta  xcode-select --install ) y repite el paso 2.
+  macOS reciente reconoce el chip CH340 sin drivers. Si no aparece ningún
+  /dev/cu.wchusbserial* ni /dev/cu.usbserial*, instala el driver de WCH:
+  https://www.wch-ic.com/downloads/CH34XSER_MAC_ZIP.html
+
+LINUX
+
+  1. Abre una terminal y ejecuta:
+
+       curl -fsSL https://raw.githubusercontent.com/dcryptoRS/netmeter-4848s040/main/host/install.sh | bash
+
+  2. Si el instalador avisa de que no estás en el grupo "dialout":
+       sudo usermod -aG dialout $USER
+     y cierra sesión y vuelve a entrar (o reinicia).
+  3. En Ubuntu, si la pantalla no se detecta:  sudo apt remove brltty
+
+COMPROBAR QUE FUNCIONA
+
+  - En la pantalla: el indicador de arriba pasa de "Esperando PC" a
+    "En línea" (verde) y aparece la hora.
+  - En el ordenador (en una terminal NUEVA):   netmeter status
+
+
+-------------------------------------------------------------------------------
+ 3. CONFIGURAR TU PLAN DE INTERNET
+-------------------------------------------------------------------------------
+
+La pantalla compara tu consumo con la velocidad que tienes contratada. Cada
+persona tiene un plan distinto (100, 300, 600 megas, 1 giga...), así que hay que
+decírselo una vez. Se guarda en la propia pantalla: no se pierde al
+desenchufarla ni al cambiar de ordenador.
+
+  "Megas" = Mbps. Ejemplos:
+    Fibra 600 Mb simétrica        ->  Bajada 600,  Subida 600
+    Fibra 1 Gb                    ->  Bajada 1000, Subida 1000
+    300 Mb de bajada / 30 subida  ->  Bajada 300,  Subida 30
+
+En la pantalla:
+
+  1. Toca el engranaje (arriba a la derecha), o "Configurar >" abajo a la derecha.
+  2. En "PLAN CONTRATADO" toca "Bajada", escribe la velocidad en Mbps y pulsa OK.
+     La primera vez se copia también a "Subida"; si tu subida es distinta,
+     tócala y cámbiala.
+  3. Pulsa "Listo".
+
+Desde el ordenador (equivalente):
+
+       netmeter config --plan-down 600 --plan-up 600
+
+Mientras no configures el plan, la pantalla no muestra porcentajes ni alertas
+(un porcentaje de un plan inventado no significaría nada).
+
+
+-------------------------------------------------------------------------------
+ 4. ALERTAS DE CONSUMO
+-------------------------------------------------------------------------------
+
+Hay una alerta para la bajada y otra para la subida, cada una con su propio
+porcentaje del plan. Por defecto, ambas al 80 %.
+
+Cómo se disparan:
+  - Salta cuando el consumo se mantiene POR ENCIMA del porcentaje durante
+    3 segundos seguidos (así un pico de un segundo no la activa).
+  - Se apaga cuando baja al menos 5 puntos por debajo del límite durante
+    5 segundos (así no parpadea si el consumo ronda el límite).
+
+Qué verás:
+  - El indicador de arriba en rojo: "Alerta ↓" (bajada), "Alerta ↑" (subida)
+    o "Alerta ↓↑" (las dos).
+  - La barra y el porcentaje de esa dirección en rojo, con el símbolo ⚠.
+  - Un aviso abajo durante 10 segundos, por ejemplo
+    "Consumo alto de bajada · 512 Mbps (85 % del plan)". Tócalo para cerrarlo.
+  - Una notificación en el escritorio del ordenador.
+  - En el gráfico, una línea discontinua marca dónde está cada límite (cuando
+    entra en la escala). En las barras, una pequeña marca vertical indica el
+    punto donde saltará la alerta.
+
+Cambiar los límites:
+  - Engranaje > "AVISAR AL SUPERAR": mueve el control de Bajada o Subida
+    (de 10 % a 100 %, en pasos de 5). Al final del recorrido pone "No":
+    esa alerta queda desactivada.
+  - Desde el ordenador:
+       netmeter config --alert-down 80 --alert-up 90
+       netmeter config --alert-up off          (desactiva la de subida)
+
+Notificaciones del escritorio:
+  Se pueden desactivar poniendo "notifications": false en el archivo de
+  configuración de la app (sección 8).
+
+
+-------------------------------------------------------------------------------
+ 5. BRILLO E IDIOMA
+-------------------------------------------------------------------------------
+
+  Engranaje > "PANTALLA":
+   - Brillo: arrastra el control (5 % a 100 %). Cambia en vivo y se guarda al
+     soltar.
+   - Idioma: Español / English.
+
+  Desde el ordenador:
+       netmeter config --brightness 60
+       netmeter config --lang en
+
+
+-------------------------------------------------------------------------------
+ 6. CÓMO LEER LA PANTALLA
+-------------------------------------------------------------------------------
+
+  Cabecera
+    "Internet", la interfaz medida (eno1, Wi-Fi, Ethernet... o el nombre de tu
+    gateway UniFi), el estado y la hora del ordenador.
+      En línea (verde)        todo bien
+      Alerta ↓ / ↑ (rojo)     consumo por encima de tu límite
+      Sin conexión (rojo)     la app del ordenador dejó de enviar datos
+                              (cable desconectado, PC apagado o en reposo)
+      Esperando PC (gris)     aún no ha llegado ningún dato desde que se
+                              encendió la pantalla
+
+  Descarga / Subida
+    Velocidad actual, % del plan, barra de uso con la marca del límite de
+    alerta, y "Pico": el máximo dentro del intervalo que muestra el gráfico.
+
+  Gráfico "Tráfico"
+    Historial real (no es una animación): azul = descarga, violeta = subida.
+    La escala se ajusta sola; las etiquetas de la izquierda indican los valores.
+    - Toca el botón "2 min" para cambiar a 10 o 30 minutos.
+    - Toca el gráfico para verlo a pantalla completa (vuelve a tocar para salir).
+    Si se corta la conexión, la línea se interrumpe en vez de inventar datos.
+    El historial vive en la memoria de la pantalla: se pierde al desenchufarla.
+
+  Pie
+    Latencia   tiempo de conexión a 1.1.1.1 (verde/blanco < 60 ms,
+               naranja < 150 ms, rojo a partir de 150 ms)
+    Recibido / Enviado   datos totales desde que se encendió el ordenador
+    Plan (Mbps)          tu plan; tócalo para cambiarlo
+
+
+-------------------------------------------------------------------------------
+ 7. UNIFI (UCG Ultra, UDM, UDR, UXG...): VER EL CONSUMO DE TODA LA CASA   [beta]
+-------------------------------------------------------------------------------
+
+Si tu router es un gateway UniFi, NetMeter puede leer el tráfico del puerto WAN
+del gateway, que es el de TODA la casa, en lugar del de tu ordenador. La
+pantalla sigue conectada al ordenador por USB: es la app la que pregunta al
+gateway por la red local. Nada sale a internet ni a la nube de Ubiquiti.
+
+Requisitos: UniFi Network 9.0 o superior y una API key.
+
+  1. Crear la API key:
+     Entra en tu UniFi Network (por ejemplo https://192.168.1.1) >
+     Ajustes (Settings) > Control Plane > Integraciones (Integrations) >
+     "Create API Key". Ponle un nombre (NetMeter) y copia la clave: solo se
+     muestra una vez.
+  2. Configurar NetMeter (cambia la IP si tu gateway usa otra):
+
+       netmeter unifi --host 192.168.1.1 --api-key PEGA_AQUI_LA_CLAVE
+
+     Prueba la conexión, muestra la velocidad leída y guarda la
+     configuración. Si prefieres no escribir la clave en la terminal, guárdala
+     sola en un archivo llamado "unifi_key" dentro de la carpeta de
+     configuración (sección 8) y ejecuta:  netmeter unifi --host 192.168.1.1
+  3. Reinicia la app:   netmeter install
+
+  Qué cambia en la pantalla: la cabecera muestra el nombre de tu gateway, las
+  velocidades son las de toda la red, y la latencia es la que mide el propio
+  gateway. "Recibido / Enviado" muestran "—" (esta fuente no los da).
+  El gateway actualiza sus cifras cada pocos segundos, así que el gráfico se
+  mueve a pequeños escalones.
+
+  Volver a medir el ordenador:   netmeter unifi --off   y luego  netmeter install
+
+  Esta función es nueva (beta). Si los valores no cuadran con los de la app de
+  UniFi, abre una incidencia en GitHub adjuntando la salida de
+  "netmeter status" y el archivo netmeter.log (sin la clave).
+
+
+-------------------------------------------------------------------------------
+ 8. ARCHIVOS, CONFIGURACIÓN Y DESINSTALACIÓN
+-------------------------------------------------------------------------------
+
+Carpeta de configuración y log (config.json, netmeter.log, unifi_key):
+    Windows   %APPDATA%\NetMeter
+    macOS     ~/Library/Application Support/NetMeter
+    Linux     ~/.config/netmeter
+
+Opciones de config.json (todas opcionales):
+    "source": "pc" o "unifi"
+    "interface": nombre de la interfaz a medir si no quieres la automática,
+                 por ejemplo "Wi-Fi", "Ethernet", "eno1", "en0"
+    "port": puerto serie fijo, por ejemplo "COM5" o "/dev/ttyUSB0"
+    "notifications": true / false
+Tras editarlo, reinicia la app con:  netmeter install
+
+Dónde se instala la app:
+    Windows   %LOCALAPPDATA%\NetMeter      (arranque: clave Run del usuario)
+    macOS     ~/Library/Application Support/NetMeter/app
+              (arranque: ~/Library/LaunchAgents/com.netmeter.agent.plist)
+    Linux     ~/.local/share/netmeter      (arranque: servicio de usuario
+              systemd "netmeter")
+
+Comandos:
+    netmeter status        qué está haciendo ahora mismo
+    netmeter config        ver o cambiar los ajustes de la pantalla
+    netmeter install       (re)activar el arranque automático y arrancar
+    netmeter uninstall     quitar el arranque automático y detenerla
+    netmeter screenshot captura.png    guardar lo que muestra la pantalla
+
+Desinstalar del todo: ejecuta "netmeter uninstall" y borra las carpetas de
+arriba (y en Linux/macOS también ~/.local/bin/netmeter).
+
+
+-------------------------------------------------------------------------------
+ 9. SOLUCIÓN DE PROBLEMAS
+-------------------------------------------------------------------------------
+
+La pantalla se queda en "Esperando PC"
+  - ¿Está la app funcionando?  netmeter status
+  - ¿Otro programa tiene abierto el puerto? (Arduino IDE, monitor serie,
+    PlatformIO, Cura...). Ciérralo: solo un programa puede usarlo a la vez.
+  - ¿El cable es de datos? Prueba otro.
+  - Windows: driver CH340. Linux: grupo dialout y brltty (sección 2).
+
+"Sin conexión" en rojo
+  - El cable se desconectó, o el ordenador está apagado / en reposo. Se
+    recupera solo en cuanto vuelven los datos.
+
+Las velocidades parecen demasiado bajas
+  - Mira qué interfaz se está midiendo (cabecera de la pantalla o
+    netmeter status). Si usas una VPN, el tráfico pasa por ella. Puedes fijar
+    la interfaz en config.json ("interface").
+  - Recuerda que se mide solo este ordenador, salvo con UniFi (sección 7).
+
+No salen porcentajes ni alertas
+  - Falta configurar el plan (sección 3).
+
+La pantalla está muy oscura o muy brillante
+  - Engranaje > Brillo, o:  netmeter config --brightness 100
+
+Restablecer todos los ajustes de la pantalla
+  - Vuelve a flashear desde la web aceptando "Borrar el dispositivo".
+
+Para informar de un problema: https://github.com/dcryptoRS/netmeter-4848s040/issues
+  adjunta la salida de "netmeter status", el archivo netmeter.log y, si puedes,
+  una captura:  netmeter screenshot captura.png
+
+
+-------------------------------------------------------------------------------
+ 10. ACTUALIZAR
+-------------------------------------------------------------------------------
+
+  - Firmware: repite la sección 1. Si NO aceptas borrar, conserva tu plan,
+    alertas, brillo e idioma.
+  - App del ordenador: vuelve a ejecutar el instalador de la sección 2.
+
+
+-------------------------------------------------------------------------------
+ 11. PARA DESARROLLADORES
+-------------------------------------------------------------------------------
+
+  firmware/   PlatformIO + Arduino core 3 + LVGL 9.5. Placa en firmware/src/board.
+  host/       netmeter.py (Python 3.8+, pyserial, psutil) e instaladores.
+  web/        página del instalador web (ESP Web Tools); el CI la publica en
+              GitHub Pages junto al binario.
+  tools/      generación de las fuentes Inter (cifras tabulares) para LVGL.
+
+  Protocolo serie (115200 baudios, líneas de texto):
+    pantalla -> PC   #NETMETER <versión>       al arrancar y como respuesta a "#?"
+    PC -> pantalla   #N {"d":B/s,"u":B/s,"rx":MB,"tx":MB,"p":ms,"src":"eno1","t":hora_local}
+    PC -> pantalla   #C {"pd":600,"pu":600,"ad":80,"au":80,"br":90,"lang":"es"} / #C?
+    pantalla -> PC   #CFG {...}   #ALERT down|up <pct> <bits/s>   #CLEAR down|up
+  La pantalla considera perdida la conexión si no recibe datos en 6 segundos.
+
+  Nota sobre el puerto serie: el circuito de auto-reset de la placa reinicia el
+  ESP32 cuando DTR y RTS quedan distintos. La app abre el puerto sin tocarlos;
+  algunos monitores serie sí lo hacen y reinician la pantalla al conectarse.

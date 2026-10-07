@@ -1,0 +1,88 @@
+#include "i18n.h"
+#include "settings.h"
+
+// Every glyph used here must exist in the generated Inter fonts
+// (tools/gen_inter_fonts.sh: ASCII, Latin-1, arrows, ⌫, ⚠, ✓, ‹ ›, …).
+static const char* const ES[S_COUNT] = {
+    [S_INTERNET]    = "Internet",
+    [S_DOWNLOAD]    = "Descarga",
+    [S_UPLOAD]      = "Subida",
+    [S_PEAK]        = "Pico",
+    [S_TRAFFIC]     = "Tráfico",
+    [S_LATENCY]     = "Latencia",
+    [S_RECEIVED]    = "Recibido",
+    [S_SENT]        = "Enviado",
+    [S_PLAN_MBPS]   = "Plan (Mbps)",
+    [S_SET_UP]      = "Configurar ›",
+    [S_ST_WAITING]  = "Esperando PC",
+    [S_ST_ONLINE]   = "En línea",
+    [S_ST_OFFLINE]  = "Sin conexión",
+    [S_ST_ALERT]    = "Alerta",
+    [S_WAIT_TITLE]  = "Instala NetMeter en tu PC",
+    [S_WAIT_BODY]   = "Conecta esta pantalla por USB y ejecuta el instalador una vez. Guía y descargas:",
+    [S_NO_DATA]     = "Sin datos en este intervalo",
+    [S_BANNER_DOWN] = "Consumo alto de bajada",
+    [S_BANNER_UP]   = "Consumo alto de subida",
+    [S_OF_PLAN]     = "del plan",
+    [S_SETTINGS]    = "Ajustes",
+    [S_DONE]        = "Listo",
+    [S_SEC_PLAN]    = "PLAN CONTRATADO",
+    [S_SEC_ALERTS]  = "AVISAR AL SUPERAR",
+    [S_SEC_DISPLAY] = "PANTALLA",
+    [S_PLAN_DOWN]   = "Bajada",
+    [S_PLAN_UP]     = "Subida",
+    [S_ALERT_DOWN]  = "Bajada",
+    [S_ALERT_UP]    = "Subida",
+    [S_BRIGHTNESS]  = "Brillo",
+    [S_LANGUAGE]    = "Idioma",
+    [S_OFF]         = "No",
+    [S_KP_DOWN]     = "Velocidad de bajada",
+    [S_KP_UP]       = "Velocidad de subida",
+    [S_CANCEL]      = "Cancelar",
+    [S_SAVE]        = "Guardar",
+};
+
+static const char* const EN[S_COUNT] = {
+    [S_INTERNET]    = "Internet",
+    [S_DOWNLOAD]    = "Download",
+    [S_UPLOAD]      = "Upload",
+    [S_PEAK]        = "Peak",
+    [S_TRAFFIC]     = "Traffic",
+    [S_LATENCY]     = "Latency",
+    [S_RECEIVED]    = "Received",
+    [S_SENT]        = "Sent",
+    [S_PLAN_MBPS]   = "Plan (Mbps)",
+    [S_SET_UP]      = "Set up ›",
+    [S_ST_WAITING]  = "Waiting for PC",
+    [S_ST_ONLINE]   = "Online",
+    [S_ST_OFFLINE]  = "Disconnected",
+    [S_ST_ALERT]    = "Alert",
+    [S_WAIT_TITLE]  = "Install NetMeter on your PC",
+    [S_WAIT_BODY]   = "Connect this screen over USB and run the installer once. Guide and downloads:",
+    [S_NO_DATA]     = "No data in this window",
+    [S_BANNER_DOWN] = "High download usage",
+    [S_BANNER_UP]   = "High upload usage",
+    [S_OF_PLAN]     = "of plan",
+    [S_SETTINGS]    = "Settings",
+    [S_DONE]        = "Done",
+    [S_SEC_PLAN]    = "INTERNET PLAN",
+    [S_SEC_ALERTS]  = "ALERT ABOVE",
+    [S_SEC_DISPLAY] = "DISPLAY",
+    [S_PLAN_DOWN]   = "Download",
+    [S_PLAN_UP]     = "Upload",
+    [S_ALERT_DOWN]  = "Download",
+    [S_ALERT_UP]    = "Upload",
+    [S_BRIGHTNESS]  = "Brightness",
+    [S_LANGUAGE]    = "Language",
+    [S_OFF]         = "Off",
+    [S_KP_DOWN]     = "Download speed",
+    [S_KP_UP]       = "Upload speed",
+    [S_CANCEL]      = "Cancel",
+    [S_SAVE]        = "Save",
+};
+
+const char* tr(StrId id) {
+    if (id < 0 || id >= S_COUNT) return "";
+    const char* s = (settings().lang == LANG_EN ? EN : ES)[id];
+    return s ? s : "";
+}
