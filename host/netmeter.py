@@ -721,9 +721,10 @@ def install() -> str:
     if SYSTEM == "Windows":
         import winreg
         value = subprocess.list2cmdline(cmd)
-        with winreg.OpenKey(winreg.HKEY_CURRENT_USER,
-                            r"Software\Microsoft\Windows\CurrentVersion\Run", 0,
-                            winreg.KEY_SET_VALUE) as k:
+        # CreateKeyEx, not OpenKey: a fresh profile may not have a Run key yet.
+        with winreg.CreateKeyEx(winreg.HKEY_CURRENT_USER,
+                                r"Software\Microsoft\Windows\CurrentVersion\Run", 0,
+                                winreg.KEY_SET_VALUE) as k:
             winreg.SetValueEx(k, APP, 0, winreg.REG_SZ, value)
         # Replace a running copy (e.g. after an update) with the new one.
         ask_agent({"cmd": "quit"}, timeout=3)

@@ -83,7 +83,7 @@ fi
 # NETMETER_NO_AUTOSTART=1 skips this step (used by CI, which has no login session).
 if [ "${NETMETER_NO_AUTOSTART:-0}" != "1" ]; then
     say "Setting up autostart..."
-    "$BIN_DIR/netmeter" install
+    "$BIN_DIR/netmeter" install || { warn "Autostart setup failed (see the error above)."; exit 1; }
 fi
 
 case ":$PATH:" in

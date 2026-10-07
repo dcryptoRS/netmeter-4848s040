@@ -83,6 +83,7 @@ if (-not ($UserPath -split ';' | Where-Object { $_ -eq $AppDir })) {
 if ($env:NETMETER_NO_AUTOSTART -ne '1') {
     Say 'Setting up autostart...'
     & $VPy "$AppDir\netmeter.py" install
+    if ($LASTEXITCODE -ne 0) { Warn 'Autostart setup failed (see the error above).'; exit 1 }
 }
 
 # ---- USB driver hint ----
