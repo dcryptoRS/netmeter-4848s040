@@ -68,14 +68,23 @@ OPCIÓN A - Desde el navegador (recomendada, no instalas nada)
 
 OPCIÓN B - Con esptool (línea de comandos)
 
-  1. Descarga netmeter-4848s040.bin de la página de Releases:
+  1. Descarga de la página de Releases
      https://github.com/dcryptoRS/netmeter-4848s040/releases/latest
+       netmeter-4848s040.bin       instalación nueva (imagen completa)
+       netmeter-4848s040-app.bin   actualización (solo la aplicación)
   2. Instala esptool:            pip install esptool
-  3. Flashea (cambia el puerto: COM5 en Windows, /dev/ttyUSB0 en Linux,
-     /dev/cu.wchusbserial* o /dev/cu.usbserial* en macOS):
+  3. Cambia el puerto en los comandos: COM5 en Windows, /dev/ttyUSB0 en
+     Linux, /dev/cu.wchusbserial* o /dev/cu.usbserial* en macOS.
 
+     Instalación nueva:
        python -m esptool --chip esp32s3 --port COM5 erase_flash
        python -m esptool --chip esp32s3 --port COM5 write_flash 0x0 netmeter-4848s040.bin
+
+     Actualizar conservando tus ajustes:
+       python -m esptool --chip esp32s3 --port COM5 write_flash 0x10000 netmeter-4848s040-app.bin
+
+     Ojo: la imagen completa (0x0) borra los ajustes aunque no uses
+     erase_flash, porque también ocupa la zona donde se guardan.
 
 OPCIÓN C - Compilar desde el código (PlatformIO)
 
@@ -374,8 +383,9 @@ Para informar de un problema: https://github.com/dcryptoRS/netmeter-4848s040/iss
  10. ACTUALIZAR
 -------------------------------------------------------------------------------
 
-  - Firmware: repite la sección 1. Si NO aceptas borrar, conserva tu plan,
-    alertas, brillo e idioma.
+  - Firmware: repite la sección 1 (opción A). Si NO aceptas borrar, conserva
+    tu plan, alertas, brillo e idioma. Con esptool usa el archivo -app.bin
+    en 0x10000 (opción B).
   - App del ordenador: vuelve a ejecutar el instalador de la sección 2.
 
 

@@ -26,13 +26,24 @@ jobs:
           key: pio-${{ runner.os }}-${{ hashFiles('firmware/platformio.ini') }}
       - run: pip install platformio
       - run: pio run -d firmware
-      # One image for offset 0x0 (bootloader + partitions + app): what the
-      # web installer and the release ship.
-      - run: cp firmware/.pio/build/guition_4848s040/firmware.factory.bin netmeter-4848s040.bin
+      # Two shapes of the same build:
+      #  * parts/ - bootloader, partition table, boot_app0 and app, each flashed
+      #    at its own offset. The web installer uses these: they leave the NVS
+      #    partition (0x9000-0xDFFF, the user's settings) untouched on updates.
+      #  * netmeter-4848s040.bin - one image for 0x0, for a fresh install.
+      #    Its 0xFF padding overwrites NVS, so it is not for updates.
+      #  * netmeter-4848s040-app.bin - app only, for updates at 0x10000.
+      - run: |
+          B=firmware/.pio/build/guition_4848s040
+          mkdir -p out/parts
+          cp $B/bootloader.bin $B/partitions.bin $B/firmware.bin out/parts/
+          cp ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin out/parts/
+          cp $B/firmware.factory.bin out/netmeter-4848s040.bin
+          cp $B/firmware.bin out/netmeter-4848s040-app.bin
       - uses: actions/upload-artifact@v4
         with:
           name: firmware
-          path: netmeter-4848s040.bin
+          path: out
 
   host-tests:
     strategy:
@@ -108,7 +119,8 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: firmware
-          path: web
+          path: out
+      - run: cp out/parts/*.bin web/
       - uses: actions/upload-pages-artifact@v3
         with:
           path: web
@@ -132,6 +144,7 @@ jobs:
           generate_release_notes: true
           files: |
             dist/netmeter-4848s040.bin
+            dist/netmeter-4848s040-app.bin
             dist/NetMeter.exe
             host/netmeter.py
             INSTRUCCIONES.txt
