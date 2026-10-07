@@ -1,6 +1,6 @@
 ===============================================================================
  NETMETER - Monitor de consumo de internet para la pantalla Guition ESP32-4848S040
- Guía completa de instalación y uso                                    v1.0.0
+ Guía completa de instalación y uso                                    v1.1.0
 ===============================================================================
 
  Web de instalación:  https://dcryptoRS.github.io/netmeter-4848s040/
@@ -250,6 +250,10 @@ Notificaciones del escritorio:
                               (cable desconectado, PC apagado o en reposo)
       Esperando PC (gris)     aún no ha llegado ningún dato desde que se
                               encendió la pantalla
+      Error del router (ámbar) solo con UniFi (sección 7): la app funciona
+                              pero el gateway no responde o rechaza la key
+      PC sin red (ámbar)      la app funciona pero el ordenador no tiene
+                              conexión
 
   Descarga / Subida
     Velocidad actual, % del plan, barra de uso con la marca del límite de
@@ -271,13 +275,18 @@ Notificaciones del escritorio:
 
 
 -------------------------------------------------------------------------------
- 7. UNIFI (UCG Ultra, UDM, UDR, UXG...): VER EL CONSUMO DE TODA LA CASA   [beta]
+ 7. OPCIONAL - UNIFI (UCG Ultra, UDM, UDR, UXG...): TODA TU RED        [beta]
 -------------------------------------------------------------------------------
 
-Si tu router es un gateway UniFi, NetMeter puede leer el tráfico del puerto WAN
-del gateway, que es el de TODA la casa, en lugar del de tu ordenador. La
-pantalla sigue conectada al ordenador por USB: es la app la que pregunta al
-gateway por la red local. Nada sale a internet ni a la nube de Ubiquiti.
+Esta sección es SOLO para quien tenga un gateway UniFi gestionando su red (por
+ejemplo un UCG Ultra). Si no lo tienes, sáltala: NetMeter funciona igual
+midiendo tu ordenador.
+
+Con un gateway UniFi, NetMeter puede leer el tráfico del puerto WAN del
+gateway, que es el de TODA la red (todos los equipos de casa u oficina), en
+lugar del de tu ordenador. La pantalla sigue conectada al ordenador por USB: es
+la app la que pregunta al gateway por la red local. Nada sale a internet ni a
+la nube de Ubiquiti.
 
 Requisitos: UniFi Network 9.0 o superior y una API key.
 
@@ -286,23 +295,33 @@ Requisitos: UniFi Network 9.0 o superior y una API key.
      Ajustes (Settings) > Control Plane > Integraciones (Integrations) >
      "Create API Key". Ponle un nombre (NetMeter) y copia la clave: solo se
      muestra una vez.
-  2. Configurar NetMeter (cambia la IP si tu gateway usa otra):
+  2. Activar UniFi en NetMeter (en una terminal):
 
-       netmeter unifi --host 192.168.1.1 --api-key PEGA_AQUI_LA_CLAVE
+       netmeter unifi --api-key PEGA_AQUI_LA_CLAVE
 
-     Prueba la conexión, muestra la velocidad leída y guarda la
-     configuración. Si prefieres no escribir la clave en la terminal, guárdala
-     sola en un archivo llamado "unifi_key" dentro de la carpeta de
-     configuración (sección 8) y ejecuta:  netmeter unifi --host 192.168.1.1
-  3. Reinicia la app:   netmeter install
+     NetMeter busca solo tu gateway (la puerta de enlace del ordenador),
+     comprueba que es un equipo UniFi, prueba la clave, muestra la velocidad
+     leída, lo guarda y lo aplica al momento: no hace falta reiniciar nada.
+     Si tu gateway tiene otra dirección, añádela:  --host 192.168.50.1
+     Si la clave es incorrecta, te lo dice y NO cambia nada.
+
+     Con NetMeter.exe (Windows, sin terminal): abre "Símbolo del sistema" en
+     la carpeta del .exe y ejecuta  NetMeter.exe unifi --api-key TU_CLAVE ;
+     el resultado aparece en una ventana.
+
+     Si prefieres no escribir la clave en la terminal, guárdala sola en un
+     archivo llamado "unifi_key" dentro de la carpeta de configuración
+     (sección 8) y ejecuta:  netmeter unifi
 
   Qué cambia en la pantalla: la cabecera muestra el nombre de tu gateway, las
   velocidades son las de toda la red, y la latencia es la que mide el propio
   gateway. "Recibido / Enviado" muestran "—" (esta fuente no los da).
   El gateway actualiza sus cifras cada pocos segundos, así que el gráfico se
-  mueve a pequeños escalones.
+  mueve a pequeños escalones. Si el gateway deja de responder (o cambias la
+  clave), el indicador pasa a "Error del router" en ámbar y "netmeter status"
+  explica el motivo.
 
-  Volver a medir el ordenador:   netmeter unifi --off   y luego  netmeter install
+  Volver a medir el ordenador:   netmeter unifi --off
 
   Esta función es nueva (beta). Si los valores no cuadran con los de la app de
   UniFi, abre una incidencia en GitHub adjuntando la salida de

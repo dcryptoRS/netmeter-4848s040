@@ -22,6 +22,7 @@ import logging.handlers
 import os
 import platform
 import queue
+import re
 import socket
 import ssl
 import statistics
@@ -35,7 +36,7 @@ import urllib.request
 import zlib
 from pathlib import Path
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 APP = "NetMeter"
 BAUD = 115200
 SAMPLE_INTERVAL = 0.5          # seconds between samples sent to the screen
@@ -143,6 +144,7 @@ class PcSource:
         self.iface: str | None = None
         self.picked_at = 0.0
         self.prev: tuple[float, int, int] | None = None
+        self.error: str | None = None   # set while there is nothing to measure
 
     def pick_interface(self) -> str | None:
         if self.forced:
@@ -164,11 +166,14 @@ class PcSource:
                 self.iface, self.prev = new, None
             self.picked_at = now
         if not self.iface:
+            self.error = "no network connection"
             return None
         counters = self.psutil.net_io_counters(pernic=True).get(self.iface)
         if counters is None:
             self.iface = None
+            self.error = "network interface disappeared"
             return None
+        self.error = None
         rx, tx = counters.bytes_recv, counters.bytes_sent
         sample = None
         if self.prev:
@@ -207,6 +212,7 @@ class UnifiSource:
         self.last: dict | None = None
         self.last_at = 0.0
         self.retry_at = 0.0
+        self.error: str | None = None   # human-readable reason while reads fail
 
     def _get(self, path: str):
         req = urllib.request.Request(self.base + path, headers={
@@ -276,23 +282,77 @@ class UnifiSource:
                     if self.mode == "health" or e.code not in (401, 403, 404):
                         raise
                 if out is not None:
-                    if self.mode is None:
-                        log.info("UniFi: reading WAN rates from stat/health")
                     self.mode = "health"
                 elif self.mode == "health":
                     raise RuntimeError("stat/health stopped reporting WAN rates")
                 else:
                     self.mode = "integration"
-                    log.info("UniFi: reading WAN rates from the Integration API")
             if self.mode == "integration":
                 out = self._integration()
+        except urllib.error.HTTPError as e:
+            if e.code in (401, 403):
+                return self._fail(now, "the gateway rejected the API key (create one in UniFi "
+                                       "Network > Settings > Control Plane > Integrations)")
+            return self._fail(now, f"the gateway answered HTTP {e.code}")
         except (OSError, ValueError, RuntimeError, KeyError) as e:
-            log.warning("UniFi read failed: %s (retrying in 5 s)", e)
-            self.gateway, self.last = None, None
-            self.retry_at = now + 5.0
-            return None
+            return self._fail(now, f"cannot reach {self.base} ({e})")
+        if self.error or not self.last_at:
+            log.info("UniFi: reading %s's WAN via %s", self.label, self.mode)
+        self.error = None
         self.last, self.last_at = out, now
         return dict(out)
+
+    def _fail(self, now: float, why: str) -> None:
+        if why != self.error:   # log each distinct problem once, not every retry
+            log.warning("UniFi: %s; retrying every 5 s", why)
+        self.error = why
+        self.gateway, self.last = None, None
+        self.retry_at = now + 5.0
+        return None
+
+
+def default_gateway() -> str | None:
+    """IPv4 address of this computer's default gateway, or None."""
+    try:
+        if SYSTEM == "Linux":
+            best = None
+            with open("/proc/net/route", encoding="ascii") as f:
+                for line in f.readlines()[1:]:
+                    p = line.split()
+                    # destination 0.0.0.0 with the RTF_GATEWAY flag; lowest metric wins
+                    if len(p) >= 8 and p[1] == "00000000" and int(p[3], 16) & 0x2:
+                        gw = socket.inet_ntoa(struct.pack("<L", int(p[2], 16)))
+                        if best is None or int(p[6]) < best[0]:
+                            best = (int(p[6]), gw)
+            return best[1] if best else None
+        if SYSTEM == "Darwin":
+            out = subprocess.run(["route", "-n", "get", "default"], capture_output=True,
+                                 text=True, timeout=5).stdout
+            m = re.search(r"gateway:\s*([0-9.]+)", out)
+            return m.group(1) if m else None
+        if SYSTEM == "Windows":
+            out = subprocess.run(
+                ["powershell", "-NoProfile", "-Command",
+                 "(Get-NetRoute -DestinationPrefix '0.0.0.0/0' | Sort-Object RouteMetric "
+                 "| Select-Object -First 1).NextHop"],
+                capture_output=True, text=True, timeout=15, creationflags=0x08000000).stdout
+            return out.strip() or None
+    except (OSError, ValueError, subprocess.SubprocessError):
+        pass
+    return None
+
+
+def is_unifi_console(host: str) -> bool:
+    """True if `host` serves the UniFi OS web UI (UCG Ultra, UDM, UDR, UXG...)."""
+    tls = ssl.create_default_context()
+    tls.check_hostname = False
+    tls.verify_mode = ssl.CERT_NONE
+    url = host if host.startswith("http") else f"https://{host}/"
+    try:
+        with urllib.request.urlopen(url, timeout=4, context=tls) as r:
+            return "unifi" in r.read(65536).decode("utf-8", "replace").lower()
+    except (OSError, ValueError):
+        return False
 
 
 class Pinger(threading.Thread):
@@ -457,6 +517,7 @@ class Agent:
         self.requests: queue.Queue = queue.Queue()
         self.pinger = Pinger()
         self.last_sample: dict | None = None
+        self.last_err_sent = 0.0
 
     # ---- source ----
     def make_source(self):
@@ -525,9 +586,18 @@ class Agent:
     def serve_request(self, req: dict) -> dict:
         cmd = req.get("cmd")
         if cmd == "status":
-            return {"ok": True, "version": VERSION, "port": self.port_name,
-                    "source": self.cfg.get("source"), "sample": self.last_sample,
-                    "device": self.device_cfg}
+            src = self.cfg.get("source")
+            if src == "unifi":
+                src = f"unifi ({self.cfg.get('unifi', {}).get('host')})"
+            return {"ok": True, "version": VERSION, "port": self.port_name, "source": src,
+                    "sample": self.last_sample, "device": self.device_cfg,
+                    "error": getattr(self.source, "error", None)}
+        if cmd == "reload":   # config.json changed (e.g. `netmeter unifi`)
+            self.cfg = load_config()
+            self.source = self.make_source()
+            self.last_sample = None
+            log.info("configuration reloaded (source: %s)", self.cfg.get("source"))
+            return {"ok": True}
         if cmd == "quit":
             log.info("quit requested")
             os._exit(0)
@@ -597,11 +667,18 @@ class Agent:
     def tick(self):
         sample = self.source.read()
         if sample is None:
+            # Tell the screen the PC is here but has nothing to show, so it
+            # says "gateway not responding" / "PC offline" instead of looking
+            # unplugged. "gw" for a UniFi source, "net" for this PC.
+            now = time.monotonic()
+            if getattr(self.source, "error", None) and now - self.last_err_sent >= 2.0:
+                code = "gw" if isinstance(self.source, UnifiSource) else "net"
+                self.send(f"#E {code} {local_epoch()}")   # the clock keeps running
+                self.last_err_sent = now
             return
         if "p" not in sample:
             sample["p"] = self.pinger.value
-        # Local wall-clock time with the UTC offset already applied.
-        sample["t"] = int(time.time() + time.localtime().tm_gmtoff)
+        sample["t"] = local_epoch()
         self.last_sample = sample
         self.send("#N " + json.dumps(sample, separators=(",", ":")))
 
@@ -615,6 +692,11 @@ class Agent:
                 reply.put(self.serve_request(req))
             except Exception as e:  # noqa: BLE001
                 reply.put({"ok": False, "error": str(e)})
+
+
+def local_epoch() -> int:
+    """Wall-clock seconds with the local UTC offset applied (the screen has no timezone)."""
+    return int(time.time() + time.localtime().tm_gmtoff)
 
 
 def control_server(agent: Agent, sock: socket.socket):
@@ -761,6 +843,14 @@ def uninstall() -> str:
     raise SystemExit(f"autostart not supported on {SYSTEM}")
 
 
+def report(text: str) -> None:
+    """Print, or show a dialog when there is no console (double-clicked NetMeter.exe)."""
+    if sys.stdout is None and SYSTEM == "Windows":
+        message_box(text)
+    else:
+        print(text)
+
+
 def message_box(text: str) -> None:
     """Feedback for the double-clicked Windows .exe, which has no console."""
     if SYSTEM == "Windows":
@@ -851,33 +941,55 @@ def cmd_status(cfg: dict, args) -> int:
     print(f"screen:  {r['port'] or 'not connected'}")
     print(f"source:  {r['source']}")
     s = r.get("sample")
-    if s:
+    if r.get("error"):
+        print(f"problem: {r['error']}")
+    elif s:
         print(f"now:     down {fmt_rate(s['d'] * 8)}, up {fmt_rate(s['u'] * 8)}, "
               f"ping {s.get('p', -1)} ms ({s.get('src')})")
     return 0
 
 
 def cmd_unifi(cfg: dict, args) -> int:
+    """Optional: measure the whole network through a UniFi gateway's WAN."""
+    def apply_now() -> str:
+        if ask_agent({"cmd": "reload"}, timeout=10) is not None:
+            return "Applied: the screen updates within a few seconds."
+        return "NetMeter is not running yet; start it with: netmeter install"
+
     if args.off:
         cfg["source"] = "pc"
         save_config(cfg)
-        print("Measuring this PC again. Restart NetMeter to apply (or: netmeter install).")
+        report("NetMeter measures this computer again.\n" + apply_now())
         return 0
+
+    host = args.host or cfg["unifi"].get("host") or default_gateway()
+    if not host:
+        report("Could not find your gateway. Give its address: netmeter unifi --host 192.168.1.1")
+        return 1
+    if not is_unifi_console(host):
+        report(f"{host} does not look like a UniFi console (UCG Ultra, UDM, UDR, UXG...).\n"
+               "If your gateway has another address: netmeter unifi --host <address>")
+        return 1
     key = args.api_key or cfg["unifi"].get("api_key")
-    host = args.host or cfg["unifi"].get("host")
-    src = UnifiSource(host, key, args.site or cfg["unifi"].get("site", "default"))
+    if not key:
+        report(f"Found a UniFi console at {host}. It needs an API key:\n"
+               "UniFi Network > Settings > Control Plane > Integrations > Create API Key,\n"
+               "then run: netmeter unifi --api-key <key>")
+        return 1
+    site = args.site or cfg["unifi"].get("site", "default")
+    src = UnifiSource(host, key, site)
     sample = src.read()
     if sample is None:
-        print("Could not read traffic from the gateway; see the log above.", file=sys.stderr)
+        report(f"Could not read traffic from {host}: {src.error}")
         return 1
-    print(f"OK: {src.label} via {src.mode}: down {fmt_rate(sample['d'] * 8)}, "
-          f"up {fmt_rate(sample['u'] * 8)}")
     cfg["source"] = "unifi"
-    cfg["unifi"].update({"host": host, "site": args.site or cfg["unifi"].get("site", "default")})
-    if args.api_key:
+    cfg["unifi"].update({"host": host, "site": site})
+    if args.api_key:   # a key that came from the unifi_key file stays only there
         cfg["unifi"]["api_key"] = args.api_key
     save_config(cfg)
-    print(f"Saved to {config_dir() / 'config.json'}. Restart NetMeter to apply (or: netmeter install).")
+    report(f"OK: {src.label} at {host} (via {src.mode}): down {fmt_rate(sample['d'] * 8)}, "
+           f"up {fmt_rate(sample['u'] * 8)}.\nThe screen now shows your whole network.\n"
+           + apply_now())
     return 0
 
 
@@ -899,7 +1011,7 @@ def main(argv=None) -> int:
     c.add_argument("--brightness", type=int, choices=range(5, 101), metavar="5-100")
     c.add_argument("--lang", choices=["es", "en"])
     u = sub.add_parser("unifi", help="measure a UniFi gateway's WAN instead of this PC")
-    u.add_argument("--host", help="gateway address, e.g. 192.168.1.1")
+    u.add_argument("--host", help="gateway address (default: this PC's default gateway)")
     u.add_argument("--api-key", help="UniFi Network > Settings > Control Plane > Integrations")
     u.add_argument("--site", help="site name (default: default)")
     u.add_argument("--off", action="store_true", help="go back to measuring this PC")

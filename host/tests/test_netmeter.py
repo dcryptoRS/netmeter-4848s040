@@ -146,3 +146,62 @@ def test_config_merges_defaults(tmp_path, monkeypatch):
     assert cfg["source"] == "unifi"
     assert cfg["unifi"] == {"host": "10.0.0.1", "api_key": "secret", "site": "default"}
     assert cfg["notifications"] is True
+
+
+def test_default_gateway_linux(monkeypatch, tmp_path):
+    route = tmp_path / "route"
+    route.write_text(
+        "Iface\tDestination\tGateway \tFlags\tRefCnt\tUse\tMetric\tMask\t\tMTU\tWindow\tIRTT\n"
+        "wlan0\t00000000\t0101A8C0\t0003\t0\t0\t600\t00000000\t0\t0\t0\n"
+        "eno1\t00000000\t0100A8C0\t0003\t0\t0\t100\t00000000\t0\t0\t0\n"
+        "eno1\t0000A8C0\t00000000\t0001\t0\t0\t100\t00FFFFFF\t0\t0\t0\n")
+    real_open = open
+    monkeypatch.setattr(netmeter, "SYSTEM", "Linux")
+    monkeypatch.setattr("builtins.open", lambda p, *a, **k: real_open(route if p == "/proc/net/route" else p, *a, **k))
+    assert netmeter.default_gateway() == "192.168.0.1"   # lowest metric wins
+
+
+def test_unifi_rejected_key_is_explained(monkeypatch):
+    src = netmeter.UnifiSource("192.168.1.1", "bad")
+
+    def deny(path):
+        raise urllib.error.HTTPError(path, 401, "Unauthorized", {}, None)
+
+    monkeypatch.setattr(src, "_get", deny)
+    assert src.read() is None
+    assert "API key" in src.error
+
+
+class FakeSerial:
+    def __init__(self):
+        self.lines = []
+
+    def write(self, data):
+        self.lines.append(data.decode().strip())
+
+
+def test_agent_reports_source_error_to_screen(monkeypatch):
+    agent = netmeter.Agent(dict(netmeter.DEFAULT_CONFIG))
+    agent.ser = FakeSerial()
+    agent.source = netmeter.UnifiSource("192.168.1.1", "k")
+    agent.source.error = "unreachable"
+    agent.source.retry_at = float("inf")
+    clock = [100.0]
+    monkeypatch.setattr(netmeter.time, "monotonic", lambda: clock[0])
+    agent.tick()
+    agent.tick()                      # throttled: still one report
+    clock[0] += 2.5
+    agent.tick()
+    assert len(agent.ser.lines) == 2
+    code, epoch = agent.ser.lines[0].split()[1:]
+    assert code == "gw" and int(epoch) > 0
+
+
+def test_unifi_command_asks_for_key(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(netmeter, "config_dir", lambda: tmp_path)
+    monkeypatch.setattr(netmeter, "default_gateway", lambda: "192.168.1.1")
+    monkeypatch.setattr(netmeter, "is_unifi_console", lambda h: True)
+    args = types.SimpleNamespace(off=False, host=None, api_key=None, site=None)
+    assert netmeter.cmd_unifi(netmeter.load_config(), args) == 1
+    assert "API key" in capsys.readouterr().out
+    assert not (tmp_path / "config.json").exists()      # nothing saved without a working key

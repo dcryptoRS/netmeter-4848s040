@@ -44,20 +44,29 @@ By default, the traffic of **the computer the screen is plugged into**, on the
 interface it uses to reach the internet (cable or Wi-Fi, picked automatically
 and re-checked every 30 s). Other devices at home are not included.
 
-To see the whole home's traffic, NetMeter can read the WAN of a **UniFi
-gateway** (UCG Ultra, UDM, UDR, UXG…) through its local API instead *(beta)*:
+### Optional: your whole network, if a UniFi gateway runs it *(beta)*
+
+If a UniFi gateway (UCG Ultra, UDM, UDR, UXG…) manages your network, NetMeter
+can read the gateway's WAN instead — every device in the house — through the
+console's local API. Nothing goes to the internet or the Ubiquiti cloud.
+Without one, skip this: measuring the PC works on its own.
 
 ```
-netmeter unifi --host 192.168.1.1 --api-key <key from UniFi Network › Settings › Control Plane › Integrations>
-netmeter install
+netmeter unifi --api-key <key from UniFi Network › Settings › Control Plane › Integrations>
 ```
+
+It finds the gateway by itself (your PC's default gateway, `--host` to
+override), checks it is a UniFi console, tests the key, and applies it
+immediately. A wrong key changes nothing. If the gateway stops answering, the
+screen says *Gateway error* in amber rather than looking unplugged.
+`netmeter unifi --off` goes back to measuring the PC.
 
 ## Commands
 
 ```
 netmeter status                    what it is doing right now
 netmeter config [--plan-down N --plan-up N --alert-down P|off --alert-up P|off --brightness P --lang es|en]
-netmeter unifi --host IP --api-key KEY | --off
+netmeter unifi [--api-key KEY] [--host IP] | --off   (optional, UniFi gateways)
 netmeter install / uninstall       autostart at login (and start / stop now)
 netmeter screenshot out.png        save what the screen shows
 ```

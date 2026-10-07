@@ -72,7 +72,7 @@
 </head>
 <body>
 <main>
-  <header><h1>NetMeter</h1><span class="pill">v1.0.0</span></header>
+  <header><h1>NetMeter</h1><span class="pill">v1.1.0</span></header>
   <p class="lede">
     Monitor de consumo de internet para la pantalla <strong>Guition ESP32-4848S040</strong>
     (4", 480×480). Muestra descarga y subida en vivo frente a tu plan contratado,
@@ -125,6 +125,9 @@
     <p style="margin:0">Toca el engranaje de la pantalla y escribe la velocidad de <strong>bajada</strong> y
       <strong>subida</strong> que tienes contratada, y a qué porcentaje quieres que te avise. También puedes
       ajustar el brillo y el idioma (español / English).</p>
+    <p class="muted" style="margin:10px 0 0"><strong>Opcional:</strong> si un gateway UniFi (UCG Ultra, UDM…)
+      gestiona tu red, NetMeter puede mostrar el tráfico de <em>toda</em> la red:
+      <code>netmeter unifi --api-key TU_CLAVE</code>. Detalles en la guía.</p>
   </section>
 
   <section class="card">

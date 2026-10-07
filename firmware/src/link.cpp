@@ -12,6 +12,8 @@ static NetSample s_sample = {};
 static bool      s_new = false;
 static bool      s_seen = false;
 static uint32_t  s_last_rx_ms = 0;
+static uint32_t  s_err_ms = 0;          // last "#E" from the PC, 0 = none since the last sample
+static char      s_err_code = 0;
 static long      s_epoch = 0;          // PC clock at s_epoch_ms
 static uint32_t  s_epoch_ms = 0;
 
@@ -56,6 +58,7 @@ static void parse_sample(const char* json) {
     s_new = true;
     s_seen = true;
     s_last_rx_ms = millis();
+    s_err_ms = 0;
 }
 
 static void handle_line(char* line) {
@@ -65,6 +68,20 @@ static void handle_line(char* line) {
     }
     if (line[1] == 'N' && line[2] == ' ') {
         parse_sample(line + 3);
+    } else if (line[1] == 'E') {
+        // Proof of life without a sample: the app is running but its source
+        // failed. Keeps the link "alive" so the screen can say what is wrong
+        // instead of looking unplugged.
+        s_seen = true;
+        s_last_rx_ms = s_err_ms = millis();
+        if (s_err_ms == 0) s_err_ms = 1;
+        s_err_code = (line[2] == ' ' && line[3] == 'n') ? 'n' : 'g';
+        // Optional local time after the code, so the clock still runs.
+        const char* t = strchr(line + 3, ' ');
+        if (t) {
+            long epoch = strtol(t + 1, nullptr, 10);
+            if (epoch > 0) { s_epoch = epoch; s_epoch_ms = millis(); }
+        }
     } else if (line[1] == '?') {
         send_hello();
         send_cfg();
@@ -110,6 +127,11 @@ bool link_take_sample(NetSample* out) {
 
 bool link_alive(void) { return s_seen && millis() - s_last_rx_ms < LINK_TIMEOUT_MS; }
 bool link_ever_seen(void) { return s_seen; }
+
+char link_source_error(void) {
+    if (!s_err_ms || millis() - s_err_ms >= LINK_TIMEOUT_MS) return 0;
+    return s_err_code;
+}
 
 bool link_local_time(int* hour, int* min) {
     if (s_epoch <= 0) return false;

@@ -439,6 +439,7 @@ static void refresh_legend(void) {
 
 static void refresh_status(void) {
     bool alive = link_alive();
+    char src_err = link_source_error();
     lv_color_t col;
     char txt[40];
     if (!link_ever_seen()) {
@@ -447,6 +448,9 @@ static void refresh_status(void) {
     } else if (!alive) {
         col = C_RED;
         snprintf(txt, sizeof(txt), "%s", tr(S_ST_OFFLINE));
+    } else if (src_err) {
+        col = C_AMBER;
+        snprintf(txt, sizeof(txt), "%s", tr(src_err == 'n' ? S_ST_NET_ERR : S_ST_GW_ERR));
     } else if (s_alert_dl.active || s_alert_ul.active) {
         col = C_RED;
         snprintf(txt, sizeof(txt), "%s %s%s", tr(S_ST_ALERT),
@@ -461,7 +465,7 @@ static void refresh_status(void) {
     lv_label_set_text(pill_txt, txt);
 
     // Stale numbers stay readable but stop looking live.
-    lv_color_t vcol = alive ? C_TEXT : C_TEXT_3;
+    lv_color_t vcol = (alive && !src_err) ? C_TEXT : C_TEXT_3;
     lv_obj_set_style_text_color(s_dl.val, vcol, 0);
     lv_obj_set_style_text_color(s_ul.val, vcol, 0);
 }
@@ -739,6 +743,7 @@ void ui_init(void) {
     lbl_title = ui_label(scr, &font_inter_sb_20, C_TEXT, "");
     lv_obj_set_pos(lbl_title, PAD, 15);
     lbl_src = ui_label(scr, &font_inter_14, C_TEXT_3, "");
+    lv_label_set_long_mode(lbl_src, LV_LABEL_LONG_MODE_DOTS);
 
     pill = ui_box(scr);
     lv_obj_set_size(pill, LV_SIZE_CONTENT, 24);
@@ -946,6 +951,13 @@ void ui_on_sample(const NetSample& s) {
     // Header: what is being measured, then re-anchor the pill behind it.
     if (strcmp(lv_label_get_text(lbl_src), s.src) != 0) {
         lv_label_set_text(lbl_src, s.src);
+        // Gateway names are user-defined ("Cloud Gateway Ultra - Office"): keep
+        // the label to one line of at most SRC_MAX_W px, ending in "…", so the
+        // status pill after it can never run into the clock.
+        const int SRC_MAX_W = 96;
+        lv_point_t sz;
+        lv_text_get_size(&sz, s.src, &font_inter_14, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+        lv_obj_set_size(lbl_src, sz.x > SRC_MAX_W ? SRC_MAX_W : sz.x, font_inter_14.line_height);
         ui_align_baseline_right(lbl_src, lbl_title, 8);
         lv_obj_align_to(pill, lbl_src, LV_ALIGN_OUT_RIGHT_MID, s.src[0] ? 12 : 4, 0);
         lv_obj_set_y(pill, 16);
@@ -963,8 +975,21 @@ void ui_tick(void) {
         lv_label_set_text_fmt(lbl_clock, "%02d:%02d", ch, cm);
     }
 
-    // Link lost: clear alerts (a stale reading can't justify one) and show it.
-    bool alive = link_alive();
+    // The PC app is here now (a sample or an error report): drop the
+    // "install the app" panel even if no sample has arrived yet.
+    if (link_ever_seen() && !lv_obj_has_flag(onboard, LV_OBJ_FLAG_HIDDEN)) refresh_onboarding();
+
+    // Source trouble reported by the PC: show it as soon as it starts/stops.
+    static char s_err_shown = 0;
+    char src_err = link_source_error();
+    if (src_err != s_err_shown) {
+        s_err_shown = src_err;
+        refresh_status();
+    }
+
+    // Link lost or no data from the source: clear alerts (a stale reading
+    // can't justify one) and show it.
+    bool alive = link_alive() && !src_err;
     if (s_online && !alive) {
         s_online = false;
         handle_alert_event(true, alert_reset(&s_alert_dl));

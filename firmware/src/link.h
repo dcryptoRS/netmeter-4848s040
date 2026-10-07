@@ -14,6 +14,9 @@
 //                    t       local wall-clock time, seconds since epoch
 //   PC -> device   #C {json} / #C?            set / read settings (see settings.h)
 //   device -> PC   #CFG {json}                current settings, after either
+//   PC -> device   #E gw|net <t>              the PC app is running but has nothing
+//                                             to measure: the UniFi gateway isn't
+//                                             answering (gw) or the PC is offline (net)
 //   device -> PC   #ALERT down|up <pct> <bits_per_s>, #CLEAR down|up
 
 struct NetSample {
@@ -29,8 +32,9 @@ struct NetSample {
 
 void link_poll(void);                       // read Serial, dispatch lines
 bool link_take_sample(NetSample* out);      // true once per new sample
-bool link_alive(void);                      // a sample arrived recently
-bool link_ever_seen(void);                  // any sample since boot
+bool link_alive(void);                      // heard from the PC app recently
+bool link_ever_seen(void);                  // heard from the PC app since boot
+char link_source_error(void);               // 'g' gateway / 'n' PC offline / 0 = none
 bool link_local_time(int* hour, int* min);  // from the PC's clock
 
 void link_send_alert(bool down, int pct, float bits);
