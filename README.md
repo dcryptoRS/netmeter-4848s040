@@ -25,6 +25,8 @@ the threshold you choose. Works with Windows, macOS and Linux.
 ## Setup in three steps
 
 1. **Flash the screen** — open the [web installer](https://dcryptoRS.github.io/netmeter-4848s040/) in Chrome or Edge, plug the screen in with a USB *data* cable, press *Install*.
+
+   <img src="docs/images/web-installer.png" alt="Web installer" width="520">
 2. **Install the PC app** (once). The screen can't see your PC's traffic by itself; a small app measures it and sends it over USB.
 
    | System | Command |

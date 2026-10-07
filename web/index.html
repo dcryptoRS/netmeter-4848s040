@@ -44,10 +44,17 @@
     word-break: break-all;
   }
   pre {
-    background: #0c0c0c; border: 1px solid var(--border); border-radius: 8px;
-    padding: 12px 14px; overflow-x: auto; margin: 10px 0 0;
+    position: relative; background: #0c0c0c; border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px 14px 40px; margin: 10px 0 0;
+    white-space: pre-wrap; word-break: break-all;
   }
   pre code { border: 0; padding: 0; background: none; }
+  .copy {
+    position: absolute; right: 8px; bottom: 8px; font: 500 12px Inter, system-ui, sans-serif;
+    color: var(--text-2); background: #1f1f1f; border: 1px solid var(--border);
+    border-radius: 6px; padding: 4px 10px; cursor: pointer;
+  }
+  .copy:hover { color: var(--text); }
   .install { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; margin: 4px 0 2px; }
   esp-web-install-button button[slot="activate"], .btn {
     font: 500 15px Inter, system-ui, sans-serif; color: #fff; background: var(--accent);
@@ -133,5 +140,20 @@
     · Proyecto independiente, sin relación con Guition ni Ubiquiti.
   </footer>
 </main>
+<script>
+  // A "Copy" button on every command, so nobody has to select a long line by hand.
+  for (const pre of document.querySelectorAll("pre")) {
+    const b = document.createElement("button");
+    b.className = "copy"; b.type = "button"; b.textContent = "Copiar";
+    b.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(pre.querySelector("code").textContent);
+        b.textContent = "Copiado ✓";
+      } catch { b.textContent = "Selecciona y copia"; }
+      setTimeout(() => (b.textContent = "Copiar"), 2000);
+    });
+    pre.appendChild(b);
+  }
+</script>
 </body>
 </html>
